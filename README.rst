@@ -2,15 +2,16 @@
 slurm-openstack-tools
 ===============================
 
-Tools to manage and provide functionality for Slurm clusters on OpenStack
+Tools to manage and provide functionality for Slurm clusters on OpenStack.
 
-Please fill here a long description which must be at least 3 lines wrapped on
-80 cols, so that distribution package maintainers can use it in their packages.
-Note that this is a hard requirement.
+Provides:
+* `slurm-openstack-rebuild`: Command-line tool suitable for use as Slurm's
+RebootProgram.
 
 * Free software: Apache license
-* Documentation: https://docs.openstack.org/slurm-openstack-tools/latest
-* Source: https://opendev.org/openstack/slurm-openstack-tools* Bugs: https://bugs.launchpad.net/replace with the name of the project on Launchpad or the ID from StoryboardFeatures
+* Documentation: here
+* Source: https://github.com/stackhpc/slurm-openstack-tools
+* Bugs: https://github.com/stackhpc/slurm-openstack-tools/issues
 --------
 
 * TODO
