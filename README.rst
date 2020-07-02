@@ -7,7 +7,7 @@ Tools to manage and provide functionality for Slurm clusters on OpenStack.
 Provides:
 
 * `slurm-openstack-rebuild`: Command-line tool suitable for use as Slurm's
-RebootProgram.
+  RebootProgram.
 
 * Free software: Apache license
 * Documentation: here
