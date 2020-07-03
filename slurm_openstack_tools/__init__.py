@@ -88,5 +88,5 @@ def rebuild_or_reboot():
 
     except Exception:
         logger.error(traceback.format_exc())
-        #sys.exit()
+        sys.exit(1)
         
