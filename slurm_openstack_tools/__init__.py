@@ -70,12 +70,14 @@ def rebuild_or_reboot():
         # find server running this script:
         with open('/var/lib/cloud/data/instance-id') as f:
             instance_id = f.readline().strip()
-        conn = openstack.connection.from_config()
-        
         logger.info('%s (server id %s): reason=%r', __file__, instance_id, reason)
 
         if reason.startswith("rebuild"):
-            params = {'name':hostname, 'admin_password':None}
+
+            # NB what's actually required in rebuild() isn't as documented, hence we need to set some "optional" parameters:
+            conn = openstack.connection.from_config()
+            me = conn.compute.get_server(instance_id)
+            params = {'name':hostname, 'admin_password':None, 'image':me.image.id}
             user_params = dict(param.split(':') for param in reason.split()[1:])
             params.update(user_params)
             logger.info('%s (server id %s): rebuilding %s', __file__, instance_id, params)
@@ -86,4 +88,5 @@ def rebuild_or_reboot():
 
     except Exception:
         logger.error(traceback.format_exc())
+        #sys.exit()
         
