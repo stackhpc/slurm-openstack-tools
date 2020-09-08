@@ -13,13 +13,13 @@
 # under the License.
 
 import pbr.version
-
-
 __version__ = pbr.version.VersionInfo(
     'slurm-openstack-tools').version_string()
 
-import socket, os, subprocess, logging, logging.handlers, traceback
+import socket, os, subprocess, logging.handlers, traceback
 import openstack
+import sys
+from os import path
 
 MAX_REASON_LENGTH = 1000
 
@@ -28,6 +28,7 @@ logger = logging.getLogger('syslogger')
 logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler('/dev/log')
 logger.addHandler(handler)
+
 
 def rebuild_or_reboot():
     """ A RebootProgram for slurm which can rebuild the node running it.
@@ -57,8 +58,11 @@ def rebuild_or_reboot():
         [1]: https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html#modifying-a-server
 
     """
+    if not path.exists('/var/lib/cloud/data/instance-id'):
+        logger.info('Restarting non openstack server')
+        os.system('reboot')
+        sys.exit(0)
 
-    
     try:
         # find our short hostname (without fqdn):
         hostname = socket.gethostname().split('.')[0]
@@ -73,8 +77,8 @@ def rebuild_or_reboot():
         logger.info('%s (server id %s): reason=%r', __file__, instance_id, reason)
 
         if reason.startswith("rebuild"):
-
-            # NB what's actually required in rebuild() isn't as documented, hence we need to set some "optional" parameters:
+            # NB what's actually required in rebuild() isn't as documented,
+            # hence we need to set some "optional" parameters:
             conn = openstack.connection.from_config()
             me = conn.compute.get_server(instance_id)
             params = {'name':hostname, 'admin_password':None, 'image':me.image.id}
@@ -86,7 +90,6 @@ def rebuild_or_reboot():
             logger.info('%s (server id %s): rebooting', __file__, instance_id)
             os.system('reboot')
 
-    except Exception:
+    except Exception as e:
         logger.error(traceback.format_exc())
         sys.exit(1)
-        
