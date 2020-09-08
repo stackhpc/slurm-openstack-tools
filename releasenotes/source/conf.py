@@ -57,7 +57,7 @@ copyright = u'2017, OpenStack Developers'
 
 # openstackdocstheme options
 openstackdocs_repo_name = 'openstack/slurm-openstack-tools'
-openstackdocs_bug_project = 'replace with the name of the project on Launchpad or the ID from Storyboard'
+openstackdocs_bug_project = 'TODO'
 openstackdocs_bug_tag = ''
 openstackdocs_auto_name = 'False'
 
