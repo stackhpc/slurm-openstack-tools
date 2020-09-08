@@ -19,10 +19,9 @@ test_slurm-openstack-tools
 Tests for `slurm-openstack-tools` module.
 """
 
-from slurm-openstack-tools.tests import base
+from slurm_openstack_tools.tests import base
 
 
-class TestSlurm-openstack-tools(base.TestCase):
-
+class TestSlurmOpenStackTools(base.TestCase):
     def test_something(self):
-        pass
+        self.assertEqual("asdf", "asdfd")

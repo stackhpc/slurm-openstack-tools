@@ -12,84 +12,108 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pbr.version
-__version__ = pbr.version.VersionInfo(
-    'slurm-openstack-tools').version_string()
-
-import socket, os, subprocess, logging.handlers, traceback
-import openstack
-import sys
+import logging.handlers
+import os
 from os import path
+import socket
+import subprocess
+import sys
+import traceback
+
+import openstack
+import pbr.version
+
+__version__ = pbr.version.VersionInfo("slurm-openstack-tools").version_string()
 
 MAX_REASON_LENGTH = 1000
 
-# configure logging to syslog - by default only "info" and above categories appear
-logger = logging.getLogger('syslogger')
+# configure logging to syslog - by default only "info"
+# and above categories appear
+logger = logging.getLogger("syslogger")
 logger.setLevel(logging.DEBUG)
-handler = logging.handlers.SysLogHandler('/dev/log')
+handler = logging.handlers.SysLogHandler("/dev/log")
 logger.addHandler(handler)
 
 
 def rebuild_or_reboot():
-    """ A RebootProgram for slurm which can rebuild the node running it.
+    """A RebootProgram for slurm which can rebuild the node running it.
 
-        This is intended to set as the `RebootProgram` in `slurm.conf`.
-        It is then triggered by slurm using something like:
+    This is intended to set as the `RebootProgram` in `slurm.conf`.
+    It is then triggered by slurm using something like:
+        scontrol reboot [ASAP] reason="rebuild image:<image_id>" <NODES>
 
-            scontrol reboot [ASAP] reason="rebuild image:<image_id>" <NODES>
-        
-        If the reason starts with "rebuild" then the node is rebuilt; arguments to
-        `openstack.compute.rebuild_server()` [1] may optionally be passed by including
-        space-separated `name:value` pairs in the reason.
+    If the reason starts with "rebuild" then the node is rebuilt; arguments to
+    `openstack.compute.rebuild_server()` may optionally be passed by including
+    space-separated `name:value` pairs in the reason.
 
-        If the reason does not start with "rebuild" then the node is rebooted.
+    If the reason does not start with "rebuild" then the node is rebooted.
+    Note the "reason" message must be MAX_REASON_LENGTH or less.
 
-        Note the "reason" message must be MAX_REASON_LENGTH or less.
+    Messages and errors are logged to syslog.
 
-        Messages and errors are logged to syslog.
-
-        Requires:
-        - Python 3 with openstacksdk module
-        - The node's Openstack ID to have been set by cloud init in `/var/lib/cloud/data/instance-id`
-        - An application credential:
-            - with at least POST rights to /v3/servers/{server_id}/action
-            - available via a clouds.yaml file containing only one cloud
-        
-        [1]: https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html#modifying-a-server
-
+    Requires:
+    - Python 3 with openstacksdk module
+    - The node's Openstack ID to have been set by cloud init in
+      `/var/lib/cloud/data/instance-id`
+    - An application credential:
+        - with at least POST rights to /v3/servers/{server_id}/action
+        - available via a clouds.yaml file containing only one cloud
     """
-    if not path.exists('/var/lib/cloud/data/instance-id'):
-        logger.info('Restarting non openstack server')
-        os.system('reboot')
+    if not path.exists("/var/lib/cloud/data/instance-id"):
+        logger.info("Restarting non openstack server")
+        os.system("reboot")
         sys.exit(0)
 
     try:
         # find our short hostname (without fqdn):
-        hostname = socket.gethostname().split('.')[0]
+        hostname = socket.gethostname().split(".")[0]
 
         # see why we're being rebooted:
-        sinfo = subprocess.run(['sinfo', '--noheader', '--nodes=%s' % hostname, '-O', 'Reason:%i' % MAX_REASON_LENGTH], stdout=subprocess.PIPE, universal_newlines=True)
+        sinfo = subprocess.run(
+            [
+                "sinfo",
+                "--noheader",
+                "--nodes=%s" % hostname,
+                "-O",
+                "Reason:%i" % MAX_REASON_LENGTH,
+            ],
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+        )
         reason = sinfo.stdout.strip()
 
         # find server running this script:
-        with open('/var/lib/cloud/data/instance-id') as f:
+        with open("/var/lib/cloud/data/instance-id") as f:
             instance_id = f.readline().strip()
-        logger.info('%s (server id %s): reason=%r', __file__, instance_id, reason)
+        logger.info(
+            "%s (server id %s): reason=%r", __file__, instance_id, reason
+        )
 
         if reason.startswith("rebuild"):
             # NB what's actually required in rebuild() isn't as documented,
             # hence we need to set some "optional" parameters:
             conn = openstack.connection.from_config()
             me = conn.compute.get_server(instance_id)
-            params = {'name':hostname, 'admin_password':None, 'image':me.image.id}
-            user_params = dict(param.split(':') for param in reason.split()[1:])
+            params = {
+                "name": hostname,
+                "admin_password": None,
+                "image": me.image.id,
+            }
+            user_params = dict(
+                param.split(":") for param in reason.split()[1:]
+            )
             params.update(user_params)
-            logger.info('%s (server id %s): rebuilding %s', __file__, instance_id, params)
+            logger.info(
+                "%s (server id %s): rebuilding %s",
+                __file__,
+                instance_id,
+                params,
+            )
             conn.compute.rebuild_server(instance_id, **params)
         else:
-            logger.info('%s (server id %s): rebooting', __file__, instance_id)
-            os.system('reboot')
+            logger.info("%s (server id %s): rebooting", __file__, instance_id)
+            os.system("reboot")
 
-    except Exception as e:
+    except Exception:
         logger.error(traceback.format_exc())
         sys.exit(1)
