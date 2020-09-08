@@ -15,6 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
 from os import path
 from unittest import mock
 
@@ -41,3 +42,15 @@ class TestReboot(base.BaseTestCase):
     def test_reboot_with_image(self):
         image = reboot.get_image_from_reason("rebuild image:uuid")
         self.assertEqual("uuid", image)
+
+    @mock.patch.object(os, "system")
+    @mock.patch.object(reboot, "rebuild_openstack_server")
+    @mock.patch.object(reboot, "get_reboot_reason",
+                       return_value="rebuild image:uuid")
+    @mock.patch.object(reboot, "get_openstack_server_id",
+                       return_value="server_id")
+    def test_rebuild_or_reboot(self, mock_id, mock_reason, mock_rebuild,
+                               mock_reboot):
+        reboot.rebuild_or_reboot()
+        mock_rebuild.assert_called_once_with('server_id', 'rebuild image:uuid')
+        self.assertEqual(0, mock_reboot.call_count)
