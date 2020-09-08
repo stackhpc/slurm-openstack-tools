@@ -2,6 +2,9 @@
 slurm-openstack-tools
 ===============================
 
+[![Build Status](https://travis-ci.com/stackhpc/slurm-openstack-tools.svg?branch=master)](https://travis-ci.com/stackhpc/slurm-openstack-tools)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Tools to manage and provide functionality for Slurm clusters on OpenStack.
 
 * Free software: Apache license
