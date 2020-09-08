@@ -74,12 +74,6 @@ def get_image_from_reason(reason):
     return image
 
 
-def get_current_image(server_id):
-    conn = openstack.connection.from_config()
-    server = conn.compute.get_server(server_id)
-    return server.image.id
-
-
 def rebuild_openstack_server(server_id, reason):
     # Validate server_id
     conn = openstack.connection.from_config()
