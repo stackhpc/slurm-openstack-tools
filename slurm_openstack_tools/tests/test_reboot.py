@@ -29,7 +29,7 @@ class TestReboot(base.BaseTestCase):
     def test_get_openstack_server_id_missing_file(self, mock_exists):
         mock_exists.return_value = False
         self.assertIsNone(reboot.get_openstack_server_id())
-        mock_exists.assert_called_once_with('/var/lib/cloud/data/instance-id')
+        mock_exists.assert_called_once_with("/var/lib/cloud/data/instance-id")
 
     def test_reboot_bad_input(self):
         image = reboot.get_image_from_reason("asdf")
@@ -43,14 +43,32 @@ class TestReboot(base.BaseTestCase):
         image = reboot.get_image_from_reason("rebuild image:uuid")
         self.assertEqual("uuid", image)
 
-    @mock.patch.object(os, "system")
+    @mock.patch.object(os, "execl")
     @mock.patch.object(reboot, "rebuild_openstack_server")
-    @mock.patch.object(reboot, "get_reboot_reason",
-                       return_value="rebuild image:uuid")
-    @mock.patch.object(reboot, "get_openstack_server_id",
-                       return_value="server_id")
-    def test_rebuild_or_reboot(self, mock_id, mock_reason, mock_rebuild,
-                               mock_reboot):
+    @mock.patch.object(
+        reboot, "get_reboot_reason", return_value="rebuild image:uuid"
+    )
+    @mock.patch.object(
+        reboot, "get_openstack_server_id", return_value="server_id"
+    )
+    def test_rebuild_or_reboot(
+        self, mock_id, mock_reason, mock_rebuild, mock_exec
+    ):
         reboot.rebuild_or_reboot()
-        mock_rebuild.assert_called_once_with('server_id', 'rebuild image:uuid')
-        self.assertEqual(0, mock_reboot.call_count)
+        mock_rebuild.assert_called_once_with("server_id", "rebuild image:uuid")
+        self.assertEqual(0, mock_exec.call_count)
+
+    @mock.patch.object(os, "execl")
+    @mock.patch.object(reboot, "rebuild_openstack_server")
+    @mock.patch.object(
+        reboot, "get_reboot_reason", return_value="reboot as normal"
+    )
+    @mock.patch.object(
+        reboot, "get_openstack_server_id", return_value="server_id"
+    )
+    def test_rebuild_or_reboot_does_reboot(
+        self, mock_id, mock_reason, mock_rebuild, mock_exec
+    ):
+        reboot.rebuild_or_reboot()
+        self.assertEqual(0, mock_rebuild.call_count)
+        mock_exec.assert_called_once_with("reboot")
