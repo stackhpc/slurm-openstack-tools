@@ -43,7 +43,7 @@ class TestReboot(base.BaseTestCase):
         image = reboot.get_image_from_reason("rebuild image:uuid")
         self.assertEqual("uuid", image)
 
-    @mock.patch.object(os, "execl")
+    @mock.patch.object(reboot, "do_reboot")
     @mock.patch.object(reboot, "rebuild_openstack_server")
     @mock.patch.object(
         reboot, "get_reboot_reason", return_value="rebuild image:uuid"
@@ -52,13 +52,15 @@ class TestReboot(base.BaseTestCase):
         reboot, "get_openstack_server_id", return_value="server_id"
     )
     def test_rebuild_or_reboot(
-        self, mock_id, mock_reason, mock_rebuild, mock_exec
+        self, mock_id, mock_reason, mock_rebuild, mock_reboot
     ):
         reboot.rebuild_or_reboot()
         mock_rebuild.assert_called_once_with("server_id", "rebuild image:uuid")
-        self.assertEqual(0, mock_exec.call_count)
+        self.assertEqual(0, mock_reboot.call_count)
+        mock_id.assert_called_once_with()
+        mock_reason.assert_called_once_with()
 
-    @mock.patch.object(os, "execl")
+    @mock.patch.object(reboot, "do_reboot")
     @mock.patch.object(reboot, "rebuild_openstack_server")
     @mock.patch.object(
         reboot, "get_reboot_reason", return_value="reboot as normal"
@@ -67,13 +69,15 @@ class TestReboot(base.BaseTestCase):
         reboot, "get_openstack_server_id", return_value="server_id"
     )
     def test_rebuild_or_reboot_does_reboot(
-        self, mock_id, mock_reason, mock_rebuild, mock_exec
+        self, mock_id, mock_reason, mock_rebuild, mock_reboot
     ):
         reboot.rebuild_or_reboot()
         self.assertEqual(0, mock_rebuild.call_count)
-        mock_exec.assert_called_once_with("reboot")
+        mock_reboot.assert_called_once_with()
+        mock_id.assert_called_once_with()
+        mock_reason.assert_called_once_with()
 
-    @mock.patch.object(os, "execl")
+    @mock.patch.object(os, "execvp")
     @mock.patch.object(
         reboot, "get_openstack_server_id", return_value=None
     )
@@ -81,4 +85,5 @@ class TestReboot(base.BaseTestCase):
         self, mock_id, mock_exec
     ):
         reboot.rebuild_or_reboot()
-        mock_exec.assert_called_once_with("reboot")
+        mock_exec.assert_called_once_with("reboot", ["reboot"])
+        mock_id.assert_called_once_with()

@@ -91,7 +91,7 @@ def rebuild_openstack_server(server_id, reason):
 def do_reboot():
     # in case we are on an NFS share,
     # try to ensure python stopped before reboot
-    os.execl("reboot")
+    os.execvp("reboot", ["reboot"])
 
 
 def rebuild_or_reboot():
