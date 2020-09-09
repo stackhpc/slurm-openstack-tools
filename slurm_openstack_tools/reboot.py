@@ -127,7 +127,6 @@ def rebuild_or_reboot():
         if not reason.startswith("rebuild"):
             logger.info("rebooting openstack server, locally")
             do_reboot()
-
         else:
             logger.info("rebuilding openstack server")
             rebuild_openstack_server(server_uuid, reason)
