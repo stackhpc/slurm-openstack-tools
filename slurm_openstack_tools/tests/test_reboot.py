@@ -72,3 +72,13 @@ class TestReboot(base.BaseTestCase):
         reboot.rebuild_or_reboot()
         self.assertEqual(0, mock_rebuild.call_count)
         mock_exec.assert_called_once_with("reboot")
+
+    @mock.patch.object(os, "execl")
+    @mock.patch.object(
+        reboot, "get_openstack_server_id", return_value=None
+    )
+    def test_rebuild_or_reboot_non_openstack(
+        self, mock_id, mock_exec
+    ):
+        reboot.rebuild_or_reboot()
+        mock_exec.assert_called_once_with("reboot")

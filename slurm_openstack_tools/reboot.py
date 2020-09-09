@@ -17,7 +17,6 @@ import os
 from os import path
 import socket
 import subprocess
-import sys
 
 import openstack
 import pbr.version
@@ -123,13 +122,12 @@ def rebuild_or_reboot():
     if not server_uuid:
         logger.info("rebooting non openstack server")
         do_reboot()
-        sys.exit(0)
-
-    reason = get_reboot_reason()
-    if not reason.startswith("rebuild"):
-        logger.info("rebooting openstack server, locally")
-        do_reboot()
-
     else:
-        logger.info("rebuilding openstack server")
-        rebuild_openstack_server(server_uuid, reason)
+        reason = get_reboot_reason()
+        if not reason.startswith("rebuild"):
+            logger.info("rebooting openstack server, locally")
+            do_reboot()
+
+        else:
+            logger.info("rebuilding openstack server")
+            rebuild_openstack_server(server_uuid, reason)
