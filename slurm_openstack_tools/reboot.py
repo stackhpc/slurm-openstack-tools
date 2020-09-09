@@ -17,7 +17,6 @@ import os
 from os import path
 import socket
 import subprocess
-import sys
 
 import openstack
 import pbr.version
@@ -84,8 +83,15 @@ def rebuild_openstack_server(server_id, reason):
         image_uuid = server.image.id
         logger.info(f"fallback to existing image:%{image_uuid}")
 
+    # Note that OpenStack will power down the server as part of the rebuild
     logger.info(f"rebuilding server %{server_id} with image %{image_uuid}")
     conn.compute.rebuild_server(server_id, image=image_uuid)
+
+
+def do_reboot():
+    # in case we are on an NFS share,
+    # try to ensure python stopped before reboot
+    os.execvp("reboot", ["reboot"])
 
 
 def rebuild_or_reboot():
@@ -115,14 +121,12 @@ def rebuild_or_reboot():
     server_uuid = get_openstack_server_id()
     if not server_uuid:
         logger.info("rebooting non openstack server")
-        os.system("reboot")
-        sys.exit(0)
-
-    reason = get_reboot_reason()
-    if not reason.startswith("rebuild"):
-        logger.info("rebooting openstack server, locally")
-        os.system("reboot")
-
+        do_reboot()
     else:
-        logger.info("rebuilding openstack server")
-        rebuild_openstack_server(server_uuid, reason)
+        reason = get_reboot_reason()
+        if not reason.startswith("rebuild"):
+            logger.info("rebooting openstack server, locally")
+            do_reboot()
+        else:
+            logger.info("rebuilding openstack server")
+            rebuild_openstack_server(server_uuid, reason)
