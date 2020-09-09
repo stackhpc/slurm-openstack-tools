@@ -17,18 +17,18 @@ slurm-openstack-rebuild
 
 Command-line tool suitable for use as Slurm's RebootProgram.
 
-Best installed inside an virtual environment:
+Best installed inside an virtual environment::
 
     python3 -m venv /opt/slurm-tools
     source /opt/slurm-tools/bin/activate
     pip install --upgrade pip
     pip install git+https://github.com/stackhpc/slurm-openstack-tools.git
 
-You can make use of it by updating slurm.conf:
+You can make use of it by updating slurm.conf::
 
     RebootProgram=/opt/slurm-tools/bin/slurm-openstack-rebuild
 
-For openstack nodes you can use this special reason to rebuild a node:
+For openstack nodes you can use this special reason to rebuild a node::
 
     scontrol reboot [ASAP] reason="rebuild image:<image_id>" [<NODES>]
 
