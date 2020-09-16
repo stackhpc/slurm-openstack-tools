@@ -43,13 +43,22 @@ def get_openstack_server_id():
         return f.readline().strip()
 
 
+def get_sinfo_path():
+    # TODO(johngarbutt): get this from environment or config file?
+    sinfo_alt_path = "/usr/local/software/slurm/current/bin/sinfo"
+    if path.exists(sinfo_alt_path):
+        return sinfo_alt_path
+    return "sinfo"
+
+
 def get_reboot_reason():
     # find our short hostname (without fqdn):
     hostname = socket.gethostname().split(".")[0]
+    sinfo_path = get_sinfo_path()
     # see why we're being rebooted:
     sinfo = subprocess.run(
         [
-            "sinfo",
+            sinfo_path,
             "--noheader",
             "--nodes=%s" % hostname,
             "-O",
