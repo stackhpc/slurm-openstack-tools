@@ -85,7 +85,7 @@ def get_image_from_reason(reason):
 def rebuild_openstack_server(server_id, reason):
     # Validate server_id
     conn = openstack.connection.from_config()
-    server = conn.compute.get_server(server_id)
+    server = conn.get_server(server_id)
 
     image_uuid = get_image_from_reason(reason)
     if not image_uuid:
@@ -94,7 +94,7 @@ def rebuild_openstack_server(server_id, reason):
 
     # Note that OpenStack will power down the server as part of the rebuild
     logger.info(f"rebuilding server %{server_id} with image %{image_uuid}")
-    conn.compute.rebuild_server(server_id, image=image_uuid)
+    conn.rebuild_server(server_id, image_uuid)
 
 
 def do_reboot():
