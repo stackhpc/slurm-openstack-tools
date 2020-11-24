@@ -60,7 +60,7 @@ Assuming the virtualenv created above::
     rm -f lasttimestamp  # clear any old state, default to today's job
     TZ=UTC /opt/slurm-tools/bin/slurm-stats >>finished_jobs.json
 
-For example, you would expect output a bit like this:
+For example, you would expect output a bit like this::
 
     tail -n2 finished_jobs.json
     {"JobID": "20", "JobIDRaw": "20", "Cluster": "linux", "Partition": "normal", "Account": "", "Group": "centos", "GID": 1000, "User": "centos", "UID": 1000, "Submit": "2020-06-23T12:43:17", "Eligible": "2020-06-23T12:43:17", "Start": "2020-06-23T12:43:21", "End": "2020-06-23T12:43:23", "Elapsed": "00:00:02", "ExitCode": "1:0", "State": "FAILED", "NNodes": 1, "NCPUS": 1, "ReqCPUS": 1, "ReqMem": "500Mc", "ReqGRES": "", "ReqTRES": "bb/datawarp=2800G,billing=1,cpu=1,mem=500M,node=1", "Timelimit": "5-00:00:00", "NodeList": "c1", "JobName": "use-perjob.sh", "AllNodes": ["c1"]}
