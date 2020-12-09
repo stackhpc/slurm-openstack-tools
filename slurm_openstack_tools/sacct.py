@@ -25,8 +25,10 @@ def main():
         with open(TIMESTAMP_FILE) as f:
             start_str = f.read()
     except FileNotFoundError:
-        # Default to start of today
-        start_str = "00:00:00"
+        # Default to last year. It seems that if you specify a time in the distance
+        # past then you get no results back.
+        last_year = now - datetime.timedelta(days=365)
+        start_str = last_year.strftime(SLURM_DATE_FORMAT)
 
     args += ["--starttime", start_str]
     args += ["--endtime", end_str]
