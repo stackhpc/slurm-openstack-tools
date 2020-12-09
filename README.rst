@@ -52,8 +52,9 @@ last timestamp in a file called "lasttimestamp". This means the tool can fetch a
 jobs since the last time stamp. If there is no stored timestime it defaults to
 fetching all jobs since midnight.
 
-Note: the default OpenHPC install doesn't enable the accounting service. It appears
-this must be enabled before --starttime and --endtime options work as expected.
+Note: For the `sacct` `starttime` and `endtime` options to work correctly the
+`AccountingStorageType` should be set to `accounting_storage/slurmdbd`, rather
+than the default, `accounting_storage/filetxt`.
 
 Assuming the virtualenv created above::
 
