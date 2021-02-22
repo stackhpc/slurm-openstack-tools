@@ -87,3 +87,10 @@ class TestReboot(base.BaseTestCase):
         reboot.rebuild_or_reboot()
         mock_exec.assert_called_once_with("reboot", ["reboot"])
         mock_id.assert_called_once_with()
+
+    @mock.patch.object(reboot, "get_rebuild_image_from_file",
+                       return_value="uuid")
+    def test_get_reboot_reason(self, mock_get_image):
+        reason = reboot.get_reboot_reason()
+        self.assertEqual("rebuild image:uuid", reason)
+        mock_get_image.assert_called_once_with()

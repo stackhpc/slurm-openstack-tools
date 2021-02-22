@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -33,6 +33,7 @@ handler = logging.handlers.SysLogHandler("/dev/log")
 logger.addHandler(handler)
 
 INSTANCE_UUID_FILE = "/var/lib/cloud/data/instance-id"
+REBUILD_IMAGE_UUID_FILE = "/var/spool/slurm/REBUILD_IMAGE_UUID"
 
 
 def get_openstack_server_id():
@@ -41,6 +42,15 @@ def get_openstack_server_id():
 
     with open(INSTANCE_UUID_FILE) as f:
         return f.readline().strip()
+
+
+def get_rebuild_image_from_file():
+    if not path.exists(REBUILD_IMAGE_UUID_FILE):
+        return None
+    with open(REBUILD_IMAGE_UUID_FILE) as f:
+        image = f.readline().strip()
+        logger.info(f"spool file requested image:{image}")
+        return image
 
 
 def get_sinfo_path():
@@ -52,6 +62,12 @@ def get_sinfo_path():
 
 
 def get_reboot_reason():
+    image_uuid = get_rebuild_image_from_file()
+    if image_uuid:
+        # don't need to check sinfo
+        # TODO(johngarbutt) need a cleaner interface
+        return f"rebuild image:{image_uuid}"
+
     # find our short hostname (without fqdn):
     hostname = socket.gethostname().split(".")[0]
     sinfo_path = get_sinfo_path()
@@ -78,7 +94,7 @@ def get_image_from_reason(reason):
         if len(image_tokens) == 2 and image_tokens[0] == "image":
             if image_tokens[1]:
                 image = image_tokens[1]
-                logger.info(f"user requested image:%{image}")
+                logger.info(f"requested image:{image}")
     return image
 
 
@@ -90,7 +106,7 @@ def rebuild_openstack_server(server_id, reason):
     image_uuid = get_image_from_reason(reason)
     if not image_uuid:
         image_uuid = server.image.id
-        logger.info(f"fallback to existing image:%{image_uuid}")
+        logger.info(f"fallback to existing image:{image_uuid}")
 
     # Note that OpenStack will power down the server as part of the rebuild
     logger.info(f"rebuilding server %{server_id} with image %{image_uuid}")

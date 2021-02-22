@@ -41,6 +41,14 @@ If you don't specifiy the image, it will default to doing a rebuild with
 the existing image. If you don't have "rebuild" at the start of your
 reason, openstack nodes will do a regular reboot.
 
+Should you need to use a job to trigger a rebuild,
+so you can't specify a custom reason for the reboot,
+you can add a file with an image uuid in the following location
+on the node you want to rebuild: /var/spool/slurm/REBUILD_IMAGE_UUID
+In addition, when this file is present, we no longer call out
+to sinfo. This can be very useful if you have sinfo installed
+in a non-standard location.
+
 slurm-stats
 ^^^^^^^^^^^
 
