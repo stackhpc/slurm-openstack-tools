@@ -14,7 +14,7 @@ def main():
     args = ["sacct", "-X", "--allusers", "--parsable2", "--format",
         "jobid,jobidraw,cluster,partition,account,group,gid,"
         "user,uid,submit,eligible,start,end,elapsed,elapsedraw,exitcode,state,nnodes,"
-        "ncpus,reqcpus,reqmem,reqgres,reqtres,timelimit,nodelist,jobname",
+        "ncpus,reqcpus,reqmem,reqtres,timelimit,nodelist,jobname",
         "--state",
         "CANCELLED,COMPLETED,FAILED,NODE_FAIL,PREEMPTED,TIMEOUT"]
     # Work out starttime and endtime
