@@ -73,7 +73,7 @@ def get_reboot_reason():
 def get_image_from_reason(reason):
     tokens = reason.split()
     image = None
-    if len(tokens) == 2:
+    if len(tokens) > 1:
         image_tokens = tokens[1].split(":")
         if len(image_tokens) == 2 and image_tokens[0] == "image":
             if image_tokens[1]:
@@ -90,7 +90,7 @@ def rebuild_openstack_server(server_id, reason):
     image_uuid = get_image_from_reason(reason)
     if not image_uuid:
         image_uuid = server.image.id
-        logger.info(f"fallback to existing image:%{image_uuid}")
+        logger.info(f"couldn't parse image from reason '%{reason}', falling back to existing image:%{image_uuid}")
 
     # Note that OpenStack will power down the server as part of the rebuild
     logger.info(f"rebuilding server %{server_id} with image %{image_uuid}")
