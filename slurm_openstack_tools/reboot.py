@@ -30,6 +30,7 @@ MAX_REASON_LENGTH = 1000
 logger = logging.getLogger("syslogger")
 logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler("/dev/log")
+handler.setFormatter(logging.Formatter(sys.argv[0] + ': %(message)s'))
 logger.addHandler(handler)
 
 INSTANCE_UUID_FILE = "/var/lib/cloud/data/instance-id"
@@ -144,3 +145,10 @@ def rebuild_or_reboot():
         else:
             logger.info("rebuilding openstack server")
             rebuild_openstack_server(server_uuid, reason)
+
+def main():
+    try:
+        rebuild_or_reboot()
+    except:
+        logger.exception('Exception in rebuild_or_reboot():')
+        raise
