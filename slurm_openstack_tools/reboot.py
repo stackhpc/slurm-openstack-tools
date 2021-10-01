@@ -87,14 +87,19 @@ def rebuild_openstack_server(server_id, reason):
     conn = openstack.connection.from_config()
     server = conn.get_server(server_id)
 
-    image_uuid = get_image_from_reason(reason)
-    if not image_uuid:
-        image_uuid = server.image.id
-        logger.info(f"couldn't parse image from reason '%{reason}', falling back to existing image:%{image_uuid}")
+    image_descr = get_image_from_reason(reason)
+    if not image_descr:
+        image_descr = server.image.id
+        logger.info(f"couldn't parse image from reason '%{reason}', falling back to existing image:%{image_descr}")
+
+    image = conn.image.find_image(image_descr) # doesn't throw exception
+    if image is None:
+        logger.error(f"image {image_descr} either not found or not unique")
+        sys.exit(1)
 
     # Note that OpenStack will power down the server as part of the rebuild
-    logger.info(f"rebuilding server %{server_id} with image %{image_uuid}")
-    conn.rebuild_server(server_id, image_uuid)
+    logger.info(f"rebuilding server %{server_id} with image %{image.id}")
+    conn.rebuild_server(server_id, image.id)
 
 
 def do_reboot():
@@ -108,7 +113,7 @@ def rebuild_or_reboot():
 
     This is intended to set as the `RebootProgram` in `slurm.conf`.
     It is then triggered by slurm using something like:
-        scontrol reboot [ASAP] reason="rebuild image:<image_id>" <NODES>
+        scontrol reboot [ASAP] reason="rebuild image:<image_name_or_id>" <NODES>
 
     If the reason starts with "rebuild" then the node is rebuilt; arguments to
     `openstack.compute.rebuild_server()` may optionally be passed by including
