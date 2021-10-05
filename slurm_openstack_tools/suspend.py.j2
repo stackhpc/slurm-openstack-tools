@@ -1,5 +1,35 @@
-#!/opt/slurm-tools/bin/python3
-""" Delete openstack instances """
+# -*- coding: utf-8 -*-
+
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+""" A Slurm SuspendProgram to delete OpenStack instances.
+
+    Usage:
+
+        suspend HOSTLIST_EXPRESSION
+
+    where:
+        HOSTLIST_EXPRESSION: Name(s) of node(s) to create, using Slurm's hostlist expression, as per [1].
+
+    If a file with the nodename exists in the Slurm control daemons spool directory [2] then the OpenStack ID is read from it and used to select the instance to delete.
+    Otherwise, this will attempt to delete the instance by name which requires that the name is unique.
+
+    Output and exceptions are written to the syslog.
+
+    [1]: https://slurm.schedmd.com/slurm.conf.html#OPT_SuspendProgram
+    [2]: https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmdSpoolDir
+
+"""
 
 import sys, os, subprocess, logging, logging.handlers
 import openstack
