@@ -1,4 +1,17 @@
-#!/opt/slurm-tools/bin/python3
+# -*- coding: utf-8 -*-
+
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
 """ A Slurm ResumeProgram to create OpenStack instances.
 
     Usage:
@@ -9,14 +22,18 @@
         HOSTLIST_EXPRESSION: Name(s) of node(s) to create, using Slurm's hostlist expression, as per [1].
         debug: Any 2nd argument puts this in debug mode which is more verbose but does not actually create nodes.
 
-    Output and exceptions are written to the syslog.
+    Output and exceptions are written to the syslog. The OpenStack ID(s) of the created node(s) are written to hostname-named files in the Slurm control daemons spool directory [2].
 
-    The flavor, image, network and keypair to be used must be defined as node Features [2] in the format "parameter=value".
+    The flavor, image, network and keypair to be used must be defined as node Features [3] in the format "parameter=value".
 
-    OpenStack credentials must be available to this script (e.g. via an application credential in /etc/openstack/clouds.yaml readable by the slurm user)
+    OpenStack credentials must be available to this script (e.g. via an application credential in /etc/openstack/clouds.yaml readable by the slurm user).
+    DNS must be available and `SlurmctldParameters=cloud_dns` set in the slurm.conf [4].
 
     [1]: https://slurm.schedmd.com/slurm.conf.html#OPT_ResumeProgram
-    [2]: https://slurm.schedmd.com/slurm.conf.html#OPT_Features
+    [2]: https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmdSpoolDir
+    [3]: https://slurm.schedmd.com/slurm.conf.html#OPT_Features
+    [4]: https://slurm.schedmd.com/slurm.conf.html#OPT_cloud_dns
+
 """
 
 import sys, os, subprocess, logging.handlers
