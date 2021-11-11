@@ -12,50 +12,66 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-""" A Slurm SuspendProgram to delete OpenStack instances.
+"""A Slurm SuspendProgram to delete OpenStack instances.
 
-    Usage:
+Usage:
 
-        suspend HOSTLIST_EXPRESSION
+    suspend HOSTLIST_EXPRESSION
 
-    where:
-        HOSTLIST_EXPRESSION: Name(s) of node(s) to create, using Slurm's hostlist expression, as per [1].
+where: HOSTLIST_EXPRESSION: Name(s) of node(s) to create, using Slurm's
+    hostlist expression, as per [1].
 
-    If a file with the nodename exists in the Slurm control daemons spool directory [2] then the OpenStack ID is read from it and used to select the instance to delete.
-    Otherwise, this will attempt to delete the instance by name which requires that the name is unique.
+If a file with the nodename exists in the Slurm control daemons spool directory
+[2] then the OpenStack ID is read from it and used to select the instance to
+delete. Otherwise, this will attempt to delete the instance by name which
+requires that the name is unique.
 
-    Output and exceptions are written to the syslog.
+Output and exceptions are written to the syslog.
 
-    [1]: https://slurm.schedmd.com/slurm.conf.html#OPT_SuspendProgram
-    [2]: https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmdSpoolDir
+[1]: https://slurm.schedmd.com/slurm.conf.html#OPT_SuspendProgram [2]:
+https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmdSpoolDir
 
 """
 
-import sys, os, subprocess, logging, logging.handlers
-import openstack
-import pprint
+import logging
+import logging.handlers
+import os
+import subprocess
+import sys
 
-# configure logging to syslog - by default only "info" and above categories appear
+import openstack
+
+# configure logging to syslog - by default only "info" and above
+# categories appear
 logger = logging.getLogger("syslogger")
 logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler("/dev/log")
 handler.setFormatter(logging.Formatter(sys.argv[0] + ': %(message)s'))
 logger.addHandler(handler)
 
+
 def get_statesavelocation():
-    """ Return the path for Slurm's StateSaveLocation """
-    scontrol = subprocess.run(['scontrol', 'show', 'config'], stdout=subprocess.PIPE, universal_newlines=True)
+    """Return the path for Slurm's StateSaveLocation """
+    scontrol = subprocess.run(
+        ['scontrol', 'show', 'config'],
+        stdout=subprocess.PIPE, universal_newlines=True)
     for line in scontrol.stdout.splitlines():
-        if line.startswith('StateSaveLocation'): # StateSaveLocation       = /var/spool/slurm
+        if line.startswith(
+            'StateSaveLocation'):  # StateSaveLocation       = /var/spool/slurm
             return line.split()[-1]
 
+
 def expand_nodes(hostlist_expr):
-    scontrol = subprocess.run(['scontrol', 'show', 'hostnames', hostlist_expr], stdout=subprocess.PIPE, universal_newlines=True)
+    scontrol = subprocess.run(
+        ['scontrol', 'show', 'hostnames', hostlist_expr],
+        stdout=subprocess.PIPE, universal_newlines=True)
     return scontrol.stdout.strip().split('\n')
+
 
 def delete_server(conn, name):
     server = conn.compute.find_server(name)
     conn.compute.delete_server(server)
+
 
 def suspend():
     hostlist_expr = sys.argv[1]
@@ -73,14 +89,16 @@ def suspend():
             with open(instance_file) as f:
                 instance_id = f.readline().strip()
         except FileNotFoundError:
-            logger.info(f"no instance file found in {statedir} for node {node}")
+            logger.info(
+                f"no instance file found in {statedir} for node {node}")
 
         logger.info(f"deleting node {instance_id or node}")
         delete_server(conn, (instance_id or node))
 
+
 def main():
     try:
         suspend()
-    except:
+    except BaseException:
         logger.exception('Exception in main:')
         raise
