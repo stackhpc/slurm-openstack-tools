@@ -14,10 +14,11 @@
 
 import logging.handlers
 import os
-from os import path
-import sys
 import socket
 import subprocess
+import sys
+
+from os import path
 
 import openstack
 import pbr.version
@@ -92,9 +93,12 @@ def rebuild_openstack_server(server_id, reason):
     image_descr = get_image_from_reason(reason)
     if not image_descr:
         image_descr = server.image.id
-        logger.info(f"couldn't parse image from reason '%{reason}', falling back to existing image:%{image_descr}")
+        logger.info(
+            f"couldn't parse image from reason '%{reason}', falling back to "
+            f"existing image:%{image_descr}"
+        )
 
-    image = conn.image.find_image(image_descr) # doesn't throw exception
+    image = conn.image.find_image(image_descr)  # doesn't throw exception
     if image is None:
         logger.error(f"image {image_descr} either not found or not unique")
         sys.exit(1)
@@ -133,7 +137,7 @@ def rebuild_or_reboot():
     - An application credential:
         - with at least POST rights to /v3/servers/{server_id}/action
         - available via a clouds.yaml file containing only one cloud
-    """
+    """ # noqa E501
     server_uuid = get_openstack_server_id()
     if not server_uuid:
         logger.info("rebooting non openstack server")
@@ -147,9 +151,10 @@ def rebuild_or_reboot():
             logger.info("rebuilding openstack server")
             rebuild_openstack_server(server_uuid, reason)
 
+
 def main():
     try:
         rebuild_or_reboot()
-    except:
+    except BaseException:
         logger.exception('Exception in rebuild_or_reboot():')
         raise
