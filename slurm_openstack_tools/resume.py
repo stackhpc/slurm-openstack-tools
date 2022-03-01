@@ -159,8 +159,6 @@ def resume():
             logger.info(f"os_objects for {node} : {os_objects}")
         if not debug:
             logger.info(f"creating node {node}")
-            # TODO(stevebrasier): save id to disk so can use it instead of name
-            # on deletion (to cope with multiple instances with same name)
             server = create_server(conn, node, **os_objects)
             logger.info(f"server: {server}")
             with open(os.path.join(statedir, node), 'w') as f:
