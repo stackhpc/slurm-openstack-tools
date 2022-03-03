@@ -40,6 +40,8 @@ import sys
 
 import openstack
 
+SCONTROL_PATH = '/usr/bin/scontrol'
+
 # configure logging to syslog - by default only "info" and above
 # categories appear
 logger = logging.getLogger("syslogger")
@@ -50,7 +52,7 @@ logger.addHandler(handler)
 
 def expand_nodes(hostlist_expr):
     scontrol = subprocess.run(
-        ['scontrol', 'show', 'hostnames', hostlist_expr],
+        [SCONTROL_PATH, 'show', 'hostnames', hostlist_expr],
         stdout=subprocess.PIPE, universal_newlines=True)
     return scontrol.stdout.strip().split('\n')
 
@@ -69,7 +71,7 @@ def resumefail():
         server = conn.compute.find_server(node)
         if server is None:
             logger.info(f"No server found for {node}, resuming")
-            scontrol = subprocess.run(['scontrol', 'update', 'state=resume', 'nodename=%s' % node],
+            scontrol = subprocess.run([SCONTROL_PATH, 'update', 'state=resume', 'nodename=%s' % node],
                 stdout=subprocess.PIPE, universal_newlines=True)
 
 def main():
@@ -78,3 +80,8 @@ def main():
     except BaseException:
         logger.exception('Exception in main:')
         raise
+
+if __name__ == '__main__':
+    # running for testing
+    handler = logging.StreamHandler() # log to console
+    main()
