@@ -65,8 +65,6 @@ def resumefail():
     conn = openstack.connection.from_config()
     logger.info(f"Got openstack connection {conn}")
 
-    statedir = get_statesavelocation()
-
     for node in failed_nodes:
         server = conn.compute.find_server(node)
         if server is None:
