@@ -158,8 +158,7 @@ def resume():
                 )
 
         # get optional port - done outside os_objects so an error finding network doesn't cause unhelpful port traceback:
-        os_portname = os_parameters.get('port_prefix', '') + node
-        os_objects['port'] = conn.network.find_port(os_portname, network_id=os_objects['network'].id)
+        os_objects['port'] = conn.network.find_port(node, network_id=os_objects['network'].id)
 
         if debug:
             logger.info(f"os_objects for {node} : {os_objects}")
