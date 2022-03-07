@@ -100,11 +100,11 @@ def get_features(nodenames):
     return features
 
 
-def create_server(conn, name, image, flavor, network, keypair):
+def create_server(conn, name, image, flavor, network, keypair, port=None):
 
     server = conn.compute.create_server(
         name=name, image_id=image.id, flavor_id=flavor.id,
-        networks=[{"uuid": network.id}], key_name=keypair.name,
+        networks=[{"port": port.id}] if port else [{"uuid": network.id}],
     )
     # server = conn.compute.wait_for_server(...)
 
@@ -156,6 +156,10 @@ def resume():
                 'Could not find openstack objects for: '
                 ', '.join([f'{k}={v}' for (k, v) in not_found.items()])
                 )
+
+        # get optional port - done outside os_objects so an error finding network doesn't cause unhelpful port traceback:
+        os_objects['port'] = conn.network.find_port(node, network_id=os_objects['network'].id)
+
         if debug:
             logger.info(f"os_objects for {node} : {os_objects}")
         if not debug:
