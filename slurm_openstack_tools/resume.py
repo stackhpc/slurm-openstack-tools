@@ -150,7 +150,7 @@ def resume():
             'network': conn.network.find_network(os_parameters['network']),
             'keypair': conn.compute.find_keypair(os_parameters['keypair']),
         }
-        not_found = dict([(k, v) for (k, v) in os_parameters.items() if os_objects[k] is None])
+        not_found = dict([(k, os_parameters[k]) for (k, v) in os_objects.items() if v is None])
         if not_found:
             raise ValueError(
                 'Could not find openstack objects for: '
@@ -158,7 +158,7 @@ def resume():
                 )
 
         # get optional port - done outside os_objects so an error finding network doesn't cause unhelpful port traceback:
-        os_portname = features[node].get('port_prefix', '') + node
+        os_portname = os_parameters.get('port_prefix', '') + node
         os_objects['port'] = conn.network.find_port(os_portname, network_id=os_objects['network'].id)
 
         if debug:
