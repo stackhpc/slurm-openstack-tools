@@ -150,11 +150,12 @@ def resume():
             'network': conn.network.find_network(os_parameters['network']),
             'keypair': conn.compute.find_keypair(os_parameters['keypair']),
         }
-        not_found = dict((k, v) for (k, v) in os_objects.items() if v is None)
+        not_found = dict([(k, v) for (k, v) in os_parameters.items() if os_objects[k] is None])
         if not_found:
             raise ValueError(
-                'Could not find openstack objects for: %s' %
-                ', '.join(not_found))
+                'Could not find openstack objects for: '
+                ', '.join([f'{k}={v}' for (k, v) in not_found.items()])
+                )
         if debug:
             logger.info(f"os_objects for {node} : {os_objects}")
         if not debug:
