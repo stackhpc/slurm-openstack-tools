@@ -56,7 +56,6 @@ def expand_nodes(hostlist_expr):
         stdout=subprocess.PIPE, universal_newlines=True)
     return scontrol.stdout.strip().split('\n')
 
-
 def resumefail():
     hostlist_expr = sys.argv[1]
     logger.info(f"Slurmctld invoked resumefail {hostlist_expr}")
@@ -68,9 +67,24 @@ def resumefail():
     for node in failed_nodes:
         server = conn.compute.find_server(node)
         if server is None:
-            logger.info(f"No server found for {node}, resuming")
+            logger.info(f"No instance found for {node}, requesting resume of node.")
             scontrol = subprocess.run([SCONTROL_PATH, 'update', 'state=resume', 'nodename=%s' % node],
                 stdout=subprocess.PIPE, universal_newlines=True)
+        else:
+            # retrieve info ourselves for errors, not exposed through the SDK attributes:
+            info = conn.compute.get(f"/servers/{server.id}").json()
+            if info['server']['status'] == 'ERROR': # https://docs.openstack.org/api-ref/compute/?expanded=show-server-details-detail#id30
+                fault_message = info['server'].get('fault', {}).get('message', None)
+                if fault_message:
+                    if "not enough hosts available" in fault_message:
+                        logger.info(f"Instance for {node} has error message '{fault_message}': Requesting instance delete and resume of node.")
+                        conn.compute.delete_server(server, ignore_missing=True, force=True)
+                        scontrol = subprocess.run([SCONTROL_PATH, 'update', 'state=resume', 'nodename=%s' % node],
+                            stdout=subprocess.PIPE, universal_newlines=True)
+                    else:
+                        logger.info(f"Instance for {node} has error message '{fault_message}'. Cannot fix this.")
+            else:
+                logger.info(f"Instance for {node} has status {info['server']['status']}. Cannot fix this.")
 
 def main():
     try:
