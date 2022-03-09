@@ -82,9 +82,9 @@ def resumefail():
                         scontrol = subprocess.run([SCONTROL_PATH, 'update', 'state=resume', 'nodename=%s' % node],
                             stdout=subprocess.PIPE, universal_newlines=True)
                     else:
-                        logger.info(f"Instance for {node} has error message '{fault_message}'. Cannot fix this.")
+                        logger.error(f"Instance for {node} has error message '{fault_message}'. Cannot fix this.")
             else:
-                logger.info(f"Instance for {node} has status {info['server']['status']}. Cannot fix this.")
+                logger.error(f"Instance for {node} has status {info['server']['status']}. Cannot fix this.")
 
 def main():
     try:
