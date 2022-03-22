@@ -29,7 +29,7 @@ def matching_nodes(hostlist_expr, state):
     """ Returns a hostlist expression for only nodes matching `state`. """
 
     sinfo = subprocess.run(
-        ['sinfo', 'noheader', f"--nodes={hostlist_expr}", f"--states={state}", "--format='%N'"],
+        ['sinfo', '--noheader', f"--nodes={hostlist_expr}", f"--states={state}", "--format=%N"],
         stdout=subprocess.PIPE, universal_newlines=True)
     
     return sinfo.stdout.strip()
