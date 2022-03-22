@@ -43,7 +43,7 @@ logger.addHandler(handler)
 
 def suspend(hostlist_expr):
     """ Deletes nodes defined by a hostlist expression. Returns a sequence of OpenStack instance UUIDs. """
-    hostlist_expr = sys.argv[1]
+    
     logger.info(f"Slurmctld invoked suspend {hostlist_expr}")
     remove_nodes = expand_nodes(hostlist_expr)
 
