@@ -87,7 +87,7 @@ def redeploy(hostlist_expr):
     sleep_time = int(resume_timeout[0]) / 10
     all_active = False
     while True:
-        status = openstack_instance_status(new_uuids)
+        status = openstack_instance_status(conn, new_uuids)
         if all(s == 'ACTIVE' for s in status.values()):
             all_active = True
             break
