@@ -1,16 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
+# See ../LICENCE
 
 """A Slurm ResumeFail for OpenStack instances.
 
@@ -40,6 +30,8 @@ import sys
 
 import openstack
 
+from slurm_openstack_tools.utils import expand_nodes
+
 SCONTROL_PATH = '/usr/bin/scontrol'
 
 # configure logging to syslog - by default only "info" and above
@@ -49,12 +41,6 @@ logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler("/dev/log")
 handler.setFormatter(logging.Formatter(sys.argv[0] + ': %(message)s'))
 logger.addHandler(handler)
-
-def expand_nodes(hostlist_expr):
-    scontrol = subprocess.run(
-        [SCONTROL_PATH, 'show', 'hostnames', hostlist_expr],
-        stdout=subprocess.PIPE, universal_newlines=True)
-    return scontrol.stdout.strip().split('\n')
 
 def resumefail():
     hostlist_expr = sys.argv[1]
