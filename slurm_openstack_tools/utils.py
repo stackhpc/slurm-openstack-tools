@@ -1,3 +1,5 @@
+import subprocess
+
 def get_slurm_conf():
     """ Return the path for Slurm's StateSaveLocation """
     scontrol = subprocess.run(
