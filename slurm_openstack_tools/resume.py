@@ -84,7 +84,7 @@ def create_server(conn, name, image, flavor, network, keypair, port=None):
     return server
 
 
-def resume(hostlist_expr, debug=false):
+def resume(hostlist_expr, debug=False):
     """ Creates nodes defined by a hostlist expression. Returns a sequence of OpenStack instance UUIDs. """
 
     logger.info(f"Slurmctld invoked resume {hostlist_expr}")
@@ -149,7 +149,7 @@ def main():
 
     try:
         hostlist_expr = sys.argv[1]
-        debug = true if len(sys.argv) > 2 else false
+        debug = True if len(sys.argv) > 2 else False
         if debug:
             logger.info(f"Running in debug mode - won't actually create nodes")
         resume(hostlist_expr, debug)
