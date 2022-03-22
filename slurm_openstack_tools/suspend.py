@@ -63,8 +63,8 @@ def suspend(hostlist_expr):
             logger.error(f"no instance file found in {statedir} for node {node}")
             exit(1)
 
-        logger.info(f"deleting node instance_id}")
-        conn.compute.delete_server(uuid)
+        logger.info(f"deleting node {instance_id}")
+        conn.compute.delete_server(instance_id)
         deleted_instance_ids.append(instance_id)
 
     return deleted_instance_ids
