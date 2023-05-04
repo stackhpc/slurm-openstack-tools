@@ -80,7 +80,7 @@ def main():
             item["AllNodesRegex"] = nodes_regex
 
         start = item.get("Start")
-        if start:
+        if start and start != 'None': # latter is job cancelled before starting
             item["StartEpoch"] = int(datetime.datetime.strptime(
                 start, SLURM_DATE_FORMAT).timestamp() * 1000)
 
