@@ -1,16 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
+# See ../LICENCE
 
 """A Slurm ResumeProgram to create OpenStack instances.
 
@@ -48,6 +38,8 @@ import sys
 
 import openstack
 
+from slurm_openstack_tools.utils import get_slurm_conf, expand_nodes
+
 REQUIRED_PARAMS = ('image', 'flavor', 'keypair', 'network')
 
 # configure logging to syslog - by default only "info" and above
@@ -57,24 +49,6 @@ logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler("/dev/log")
 handler.setFormatter(logging.Formatter(sys.argv[0] + ': %(message)s'))
 logger.addHandler(handler)
-
-
-def get_statesavelocation():
-    """Return the path for Slurm's StateSaveLocation """
-    scontrol = subprocess.run(
-        ['scontrol', 'show', 'config'],
-        stdout=subprocess.PIPE, universal_newlines=True)
-    for line in scontrol.stdout.splitlines():
-        if line.startswith(
-            'StateSaveLocation'):  # StateSaveLocation       = /var/spool/slurm
-            return line.split()[-1]
-
-
-def expand_nodes(hostlist_expr):
-    scontrol = subprocess.run(
-        ['scontrol', 'show', 'hostnames', hostlist_expr],
-        stdout=subprocess.PIPE, universal_newlines=True)
-    return scontrol.stdout.strip().split('\n')
 
 
 def get_features(nodenames):
@@ -100,23 +74,19 @@ def get_features(nodenames):
     return features
 
 
-def create_server(conn, name, image, flavor, network, keypair):
+def create_server(conn, name, image, flavor, network, keypair, port=None):
 
     server = conn.compute.create_server(
         name=name, image_id=image.id, flavor_id=flavor.id,
-        networks=[{"uuid": network.id}], key_name=keypair.name,
+        networks=[{"port": port.id}] if port else [{"uuid": network.id}],
     )
-    # server = conn.compute.wait_for_server(...)
 
     return server
 
 
-def resume():
-    debug = False
-    if len(sys.argv) > 2:
-        logger.info(f"Running in debug mode - won't actually create nodes")
-        debug = True
-    hostlist_expr = sys.argv[1]
+def resume(hostlist_expr, debug=False):
+    """ Creates nodes defined by a hostlist expression. Returns a sequence of OpenStack instance UUIDs. """
+
     logger.info(f"Slurmctld invoked resume {hostlist_expr}")
     new_nodes = expand_nodes(hostlist_expr)
 
@@ -126,8 +96,9 @@ def resume():
     features = get_features(hostlist_expr)
     logger.info(f"Read feature information from slurm")
 
-    statedir = get_statesavelocation()
+    statedir = get_slurm_conf()['StateSaveLocation']
 
+    created_instance_ids = []
     for node in new_nodes:
         # extract the openstack parameters from node features:
         if node not in features:
@@ -150,28 +121,38 @@ def resume():
             'network': conn.network.find_network(os_parameters['network']),
             'keypair': conn.compute.find_keypair(os_parameters['keypair']),
         }
-        not_found = dict((k, v) for (k, v) in os_objects.items() if v is None)
+        not_found = dict([(k, os_parameters[k]) for (k, v) in os_objects.items() if v is None])
         if not_found:
             raise ValueError(
-                'Could not find openstack objects for: %s' %
-                ', '.join(not_found))
+                'Could not find openstack objects for: '
+                ', '.join([f'{k}={v}' for (k, v) in not_found.items()])
+                )
+
+        # get optional port - done outside os_objects so an error finding network doesn't cause unhelpful port traceback:
+        os_objects['port'] = conn.network.find_port(node, network_id=os_objects['network'].id)
+
         if debug:
             logger.info(f"os_objects for {node} : {os_objects}")
-        if not debug:
+        else:
             logger.info(f"creating node {node}")
-            # TODO(stevebrasier): save id to disk so can use it instead of name
-            # on deletion (to cope with multiple instances with same name)
             server = create_server(conn, node, **os_objects)
             logger.info(f"server: {server}")
             with open(os.path.join(statedir, node), 'w') as f:
                 f.write(server.id)
             # Don't need scontrol update nodename={node} nodeaddr={server_ip}
             # as using SlurmctldParameters=cloud_dns
+        created_instance_ids.append(server.id)
 
+    return created_instance_ids
 
 def main():
+
     try:
-        resume()
+        hostlist_expr = sys.argv[1]
+        debug = True if len(sys.argv) > 2 else False
+        if debug:
+            logger.info(f"Running in debug mode - won't actually create nodes")
+        resume(hostlist_expr, debug)
     except BaseException:
         logger.exception('Exception in main:')
         raise
