@@ -50,17 +50,17 @@ def get_current_image(conn, server_id):
     return server.image.id
 
 
-def rebuild_node(conn, server_id, image_id):
+def rebuild_node(conn, server_id, target_image_id):
     """
     Rebuild the node with the target image.
     """
-    image = conn.image.find_image(image_id)
+    image = conn.image.find_image(target_image_id)
     if not image:
-        logger.error(f"Target image {image_id} not found in OpenStack")
+        logger.error(f"Target image {target_image_id} not found in OpenStack")
         return False
 
-    logger.info(f"Rebuilding server {server_id} with image {image_id}")
-    conn.rebuild_server(server_id, image.id)
+    logger.info(f"Rebuilding server {server_id} with image {target_image_id}")
+    conn.rebuild_server(server_id, target_image_id)
     return True
 
 
@@ -82,23 +82,22 @@ def process_node(conn, node):
         logger.info(f"No hostvars defined for node {node}, skipping...")
         return
 
-    server_id = hostvars.get("openstack_id")
-    image_id = hostvars.get("image_id")
+    server_id = hostvars.get("instance_id")
+    target_image_id = hostvars.get("image_id")
 
     if not server_id:
-        logger.info(f"Node {node} is not an OpenStack node, performing local reboot...")
-        os.system(f"ssh {node} sudo reboot")
+        logger.info(f"Node {node} is not an OpenStack node, ignoring...")
         return
 
-    if not image_id:
+    if not target_image_id:
         logger.info(f"Node {node} does not have a target image defined, performing reboot...")
         reboot_node(conn, server_id)
         return
 
-    current_image = get_current_image(conn, server_id)
-    if current_image != image_id:
-        logger.info(f"Node {node} requires rebuild: current image {current_image}, target image {image_id}")
-        rebuild_node(conn, server_id, image_id)
+    current_image_id = get_current_image(conn, server_id)
+    if current_image_id != target_image_id:
+        logger.info(f"Node {node} requires rebuild: current image {current_image_id}, target image {target_image_id}")
+        rebuild_node(conn, server_id, target_image_id)
     else:
         logger.info(f"Node {node} is already using the target image, performing reboot...")
         reboot_node(conn, server_id)
