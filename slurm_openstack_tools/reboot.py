@@ -1,9 +1,25 @@
-import yaml
+# -*- coding: utf-8 -*-
+
+ # Licensed under the Apache License, Version 2.0 (the "License"); you may
+ # not use this file except in compliance with the License. You may obtain
+ # a copy of the License at
+ #
+ #      http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ # License for the specific language governing permissions and limitations
+ # under the License.
+
 import logging.handlers
-import openstack
 import os
+import re
 import sys
 from pathlib import Path
+
+import openstack
+import yaml
 
 # Configure logging to syslog
 logger = logging.getLogger("syslogger")
@@ -16,20 +32,14 @@ logger.addHandler(handler)
 HOSTVARS_DIR = "/exports/cluster/hostvars"
 
 
-def get_hostlist_from_slurm():
-    """
-    Parse the hostlist provided by Slurm as command-line arguments.
-    """
-    if len(sys.argv) < 2:
-        logger.error("No hostlist provided by Slurm")
-        sys.exit(1)
-    return sys.argv[1].split(",")
-
-
 def read_hostvars(node):
     """
     Read the hostvars.yml file for a specific node.
     """
+    if not re.match(r'^[A-Za-z0-9-]+$', node):
+        logger.error(f"Invalid node name: {node}. Node name must contain only alphanumeric characters.")
+        sys.exit(1)
+
     hostvars_file = Path(HOSTVARS_DIR) / node / "hostvars.yml"
     if not hostvars_file.exists():
         logger.warning(f"No hostvars.yml found for node: {node}")
@@ -39,38 +49,22 @@ def read_hostvars(node):
         return yaml.safe_load(f)
 
 
-def get_current_image(conn, server_id):
+def find_server(conn, server_id):
     """
-    Retrieve the current image for a server using OpenStack.
+    Retrieve the server object using the server ID.
     """
-    server = conn.get_server(server_id)
-    if not server:
-        logger.error(f"Server ID {server_id} not found in OpenStack")
+    try:
+        server = conn.get_server(server_id)
+        if not server:
+            logger.error(f"Server with ID {server_id} not found.")
+            return None
+        return server
+    except openstack.exceptions.ResourceNotFound:
+        logger.error(f"Server with ID {server_id} not found.")
         return None
-    return server.image.id
-
-
-def rebuild_node(conn, server_id, target_image_id):
-    """
-    Rebuild the node with the target image.
-    """
-    image = conn.image.find_image(target_image_id)
-    if not image:
-        logger.error(f"Target image {target_image_id} not found in OpenStack")
-        return False
-
-    logger.info(f"Rebuilding server {server_id} with image {target_image_id}")
-    conn.rebuild_server(server_id, target_image_id)
-    return True
-
-
-def reboot_node(conn, server_id, reboot_type="HARD"):
-    """
-    Reboot the node (default: hard reboot).
-    """
-    logger.info(f"Rebooting server {server_id} with {reboot_type.lower()} reboot")
-    conn.compute.reboot_server(server_id, reboot_type=reboot_type)
-    return True
+    except Exception as e:
+        logger.error(f"An error occurred while retrieving server {server_id}: {e}")
+        raise
 
 
 def process_node(conn, node):
@@ -86,21 +80,46 @@ def process_node(conn, node):
     target_image_id = hostvars.get("image_id")
 
     if not server_id:
-        logger.info(f"Node {node} is not an OpenStack node, ignoring...")
-        return
+        raise ValueError(f"Node {node} does not have a valid server_id. Exiting.")
 
     if not target_image_id:
-        logger.info(f"Node {node} does not have a target image defined, performing reboot...")
-        reboot_node(conn, server_id)
+        raise ValueError(f"Node {node} does not have a target image defined. Exiting.")
+
+    # Fetch the server object once
+    server = find_server(conn, server_id)
+    if not server:
         return
 
-    current_image_id = get_current_image(conn, server_id)
+    current_image_id = server.image['id'] if 'image' in server and server.image else None
     if current_image_id != target_image_id:
         logger.info(f"Node {node} requires rebuild: current image {current_image_id}, target image {target_image_id}")
-        rebuild_node(conn, server_id, target_image_id)
+        rebuild_node(conn, server, target_image_id)
     else:
         logger.info(f"Node {node} is already using the target image, performing reboot...")
-        reboot_node(conn, server_id)
+        reboot_node(conn, server)
+
+
+def rebuild_node(conn, server, target_image_id):
+    """
+    Rebuild the node with the target image using the server object.
+    """
+    image = conn.image.get_image(target_image_id)
+    if not image:
+        logger.error(f"Target image {target_image_id} not found in OpenStack")
+        return False
+
+    logger.info(f"Rebuilding server {server.id} with image {target_image_id}")
+    conn.rebuild_server(server, image)
+    return True
+
+
+def reboot_node(conn, server, reboot_type="SOFT"):
+    """
+    Reboot the node using the server object (default: soft reboot).
+    """
+    logger.info(f"Rebooting server {server.id} with {reboot_type.lower()} reboot")
+    conn.compute.reboot_server(server, reboot_type=reboot_type)
+    return True
 
 
 def main():
@@ -112,10 +131,20 @@ def main():
         sys.exit(1)
 
     hostlist = sys.argv[1].split(",")
-    conn = openstack.connection.from_config()
+
+    try:
+        conn = openstack.connection.from_config()
+        logger.debug("OpenStack connection established")
+    except Exception as e:
+        logger.error(f"Failed to establish OpenStack connection: {e}")
+        sys.exit(1)
 
     for node in hostlist:
-        process_node(conn, node)
+        logger.debug(f"Processing node: {node}")
+        try:
+            process_node(conn, node)
+        except Exception as e:
+            logger.error(f"Failed to process node {node}: {e}")
 
 
 if __name__ == "__main__":
