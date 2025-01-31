@@ -108,18 +108,16 @@ def rebuild_node(conn, server, target_image_id):
         logger.error(f"Target image {target_image_id} not found in OpenStack")
         return False
 
-    logger.info(f"Rebuilding server {server.id} with image {target_image_id}")
     conn.rebuild_server(server, image)
-    return True
+    logger.info(f"Rebuilt server {server.id} with image {target_image_id}.")
 
 
 def reboot_node(conn, server, reboot_type="SOFT"):
     """
     Reboot the node using the server object (default: soft reboot).
     """
-    logger.info(f"Rebooting server {server.id} with {reboot_type.lower()} reboot")
     conn.compute.reboot_server(server, reboot_type=reboot_type)
-    return True
+    logger.info(f"Rebooted server {server.id} with {reboot_type.lower()} reboot.")
 
 
 def main():
@@ -139,12 +137,22 @@ def main():
         logger.error(f"Failed to establish OpenStack connection: {e}")
         sys.exit(1)
 
+    failed_nodes = 0
+
     for node in hostlist:
         logger.debug(f"Processing node: {node}")
         try:
             process_node(conn, node)
         except Exception as e:
             logger.error(f"Failed to process node {node}: {e}")
+            failed_nodes += 1
+
+        if failed_nodes > 0:
+            logger.error(f"{failed_nodes} nodes failed to process. Exiting with error.")
+            sys.exit(1)
+
+        logger.info("All nodes processed successfully.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
