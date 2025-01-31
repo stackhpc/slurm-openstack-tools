@@ -151,8 +151,8 @@ def main():
             logger.error(f"{failed_nodes} nodes failed to process. Exiting with error.")
             sys.exit(1)
 
-        logger.info("All nodes processed successfully.")
-        sys.exit(0)
+    logger.info("All nodes processed successfully.")
+    sys.exit(0)
 
 
 if __name__ == "__main__":
