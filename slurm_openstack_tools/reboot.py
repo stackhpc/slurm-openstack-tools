@@ -109,7 +109,7 @@ def rebuild_node(conn, server, target_image_id):
         return False
 
     conn.rebuild_server(server, image)
-    logger.info(f"Rebuilt server {server.id} with image {target_image_id}.")
+    logger.info(f"Rebuilding server {server.id} with image {target_image_id}.")
 
 
 def reboot_node(conn, server, reboot_type="SOFT"):
@@ -117,7 +117,7 @@ def reboot_node(conn, server, reboot_type="SOFT"):
     Reboot the node using the server object (default: soft reboot).
     """
     conn.compute.reboot_server(server, reboot_type=reboot_type)
-    logger.info(f"Rebooted server {server.id} with {reboot_type.lower()} reboot.")
+    logger.info(f"Rebooting server {server.id} with {reboot_type.lower()} reboot.")
 
 
 def main():
