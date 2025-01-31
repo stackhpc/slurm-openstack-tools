@@ -1,160 +1,159 @@
 # -*- coding: utf-8 -*-
 
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
+ # Licensed under the Apache License, Version 2.0 (the "License"); you may
+ # not use this file except in compliance with the License. You may obtain
+ # a copy of the License at
+ #
+ #      http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ # License for the specific language governing permissions and limitations
+ # under the License.
 
 import logging.handlers
 import os
-import socket
-import subprocess
+import re
 import sys
-
-from os import path
+from pathlib import Path
 
 import openstack
-import pbr.version
+import yaml
 
-__version__ = pbr.version.VersionInfo("slurm-openstack-tools").version_string()
-
-MAX_REASON_LENGTH = 1000
-
-# configure logging to syslog - by default only "info"
-# and above categories appear
+# Configure logging to syslog
 logger = logging.getLogger("syslogger")
 logger.setLevel(logging.DEBUG)
 handler = logging.handlers.SysLogHandler("/dev/log")
-handler.setFormatter(logging.Formatter(sys.argv[0] + ': %(message)s'))
+handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-INSTANCE_UUID_FILE = "/var/lib/cloud/data/instance-id"
+# Directory containing per-node configurations
+HOSTVARS_DIR = "/exports/cluster/hostvars"
 
 
-def get_openstack_server_id():
-    if not path.exists(INSTANCE_UUID_FILE):
-        return None
-
-    with open(INSTANCE_UUID_FILE) as f:
-        return f.readline().strip()
-
-
-def get_sinfo_path():
-    # TODO(johngarbutt): get this from environment or config file?
-    sinfo_alt_path = "/usr/local/software/slurm/current/bin/sinfo"
-    if path.exists(sinfo_alt_path):
-        return sinfo_alt_path
-    return "sinfo"
-
-
-def get_reboot_reason():
-    # find our short hostname (without fqdn):
-    hostname = socket.gethostname().split(".")[0]
-    sinfo_path = get_sinfo_path()
-    # see why we're being rebooted:
-    sinfo = subprocess.run(
-        [
-            sinfo_path,
-            "--noheader",
-            "--nodes=%s" % hostname,
-            "-O",
-            "Reason:%i" % MAX_REASON_LENGTH,
-        ],
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-    )
-    return sinfo.stdout.strip()
-
-
-def get_image_from_reason(reason):
-    tokens = reason.split()
-    image = None
-    if len(tokens) > 1:
-        image_tokens = tokens[1].split(":")
-        if len(image_tokens) == 2 and image_tokens[0] == "image":
-            if image_tokens[1]:
-                image = image_tokens[1]
-                logger.info(f"user requested image:%{image}")
-    return image
-
-
-def rebuild_openstack_server(server_id, reason):
-    # Validate server_id
-    conn = openstack.connection.from_config()
-    server = conn.get_server(server_id)
-
-    image_descr = get_image_from_reason(reason)
-    if not image_descr:
-        image_descr = server.image.id
-        logger.info(
-            f"couldn't parse image from reason '%{reason}', falling back to "
-            f"existing image:%{image_descr}"
-        )
-
-    image = conn.image.find_image(image_descr)  # doesn't throw exception
-    if image is None:
-        logger.error(f"image {image_descr} either not found or not unique")
+def read_hostvars(node):
+    """
+    Read the hostvars.yml file for a specific node.
+    """
+    if not re.match(r'^[A-Za-z0-9-]+$', node):
+        logger.error(f"Invalid node name: {node}. Node name must contain only alphanumeric characters.")
         sys.exit(1)
 
-    # Note that OpenStack will power down the server as part of the rebuild
-    logger.info(f"rebuilding server %{server_id} with image %{image.id}")
-    conn.rebuild_server(server_id, image.id)
+    hostvars_file = Path(HOSTVARS_DIR) / node / "hostvars.yml"
+    if not hostvars_file.exists():
+        logger.warning(f"No hostvars.yml found for node: {node}")
+        return None
+
+    with open(hostvars_file, "r") as f:
+        return yaml.safe_load(f)
 
 
-def do_reboot():
-    # in case we are on an NFS share,
-    # try to ensure python stopped before reboot
-    os.execvp("reboot", ["reboot"])
+def find_server(conn, server_id):
+    """
+    Retrieve the server object using the server ID.
+    """
+    try:
+        server = conn.get_server(server_id)
+        if not server:
+            logger.error(f"Server with ID {server_id} not found.")
+            return None
+        return server
+    except openstack.exceptions.ResourceNotFound:
+        logger.error(f"Server with ID {server_id} not found.")
+        return None
+    except Exception as e:
+        logger.error(f"An error occurred while retrieving server {server_id}: {e}")
+        raise
 
 
-def rebuild_or_reboot():
-    """A RebootProgram for slurm which can rebuild the node running it.
+def process_node(conn, node):
+    """
+    Process a single node by comparing its target and current images.
+    """
+    hostvars = read_hostvars(node)
+    if not hostvars:
+        logger.info(f"No hostvars defined for node {node}, skipping...")
+        return
 
-    This is intended to set as the `RebootProgram` in `slurm.conf`.
-    It is then triggered by slurm using something like:
-        scontrol reboot [ASAP] reason="rebuild image:<image_name_or_id>" <NODES>
+    server_id = hostvars.get("instance_id")
+    target_image_id = hostvars.get("image_id")
 
-    If the reason starts with "rebuild" then the node is rebuilt; arguments to
-    `openstack.compute.rebuild_server()` may optionally be passed by including
-    space-separated `name:value` pairs in the reason.
+    if not server_id:
+        raise ValueError(f"Node {node} does not have a valid server_id. Exiting.")
 
-    If the reason does not start with "rebuild" then the node is rebooted.
-    Note the "reason" message must be MAX_REASON_LENGTH or less.
+    if not target_image_id:
+        raise ValueError(f"Node {node} does not have a target image defined. Exiting.")
 
-    Messages and errors are logged to syslog.
+    # Fetch the server object once
+    server = find_server(conn, server_id)
+    if not server:
+        return
 
-    Requires:
-    - Python 3 with openstacksdk module
-    - The node's Openstack ID to have been set by cloud init in
-      `/var/lib/cloud/data/instance-id`
-    - An application credential:
-        - with at least POST rights to /v3/servers/{server_id}/action
-        - available via a clouds.yaml file containing only one cloud
-    """ # noqa E501
-    server_uuid = get_openstack_server_id()
-    if not server_uuid:
-        logger.info("rebooting non openstack server")
-        do_reboot()
+    current_image_id = server.image['id'] if 'image' in server and server.image else None
+    if current_image_id != target_image_id:
+        logger.info(f"Node {node} requires rebuild: current image {current_image_id}, target image {target_image_id}")
+        rebuild_node(conn, server, target_image_id)
     else:
-        reason = get_reboot_reason()
-        if not reason.startswith("rebuild"):
-            logger.info("rebooting openstack server, locally")
-            do_reboot()
-        else:
-            logger.info("rebuilding openstack server")
-            rebuild_openstack_server(server_uuid, reason)
+        logger.info(f"Node {node} is already using the target image, performing reboot...")
+        reboot_node(conn, server)
+
+
+def rebuild_node(conn, server, target_image_id):
+    """
+    Rebuild the node with the target image using the server object.
+    """
+    image = conn.image.get_image(target_image_id)
+    if not image:
+        logger.error(f"Target image {target_image_id} not found in OpenStack")
+        return False
+
+    conn.rebuild_server(server, image)
+    logger.info(f"Rebuilding server {server.id} with image {target_image_id}.")
+
+
+def reboot_node(conn, server, reboot_type="SOFT"):
+    """
+    Reboot the node using the server object (default: soft reboot).
+    """
+    conn.compute.reboot_server(server, reboot_type=reboot_type)
+    logger.info(f"Rebooting server {server.id} with {reboot_type.lower()} reboot.")
 
 
 def main():
+    """
+    Main function to process nodes from the Slurm-provided hostlist.
+    """
+    if len(sys.argv) < 2:
+        logger.error("Usage: <script> <hostlist>")
+        sys.exit(1)
+
+    hostlist = sys.argv[1].split(",")
+
     try:
-        rebuild_or_reboot()
-    except BaseException:
-        logger.exception('Exception in rebuild_or_reboot():')
-        raise
+        conn = openstack.connection.from_config()
+        logger.debug("OpenStack connection established")
+    except Exception as e:
+        logger.error(f"Failed to establish OpenStack connection: {e}")
+        sys.exit(1)
+
+    failed_nodes = 0
+
+    for node in hostlist:
+        logger.debug(f"Processing node: {node}")
+        try:
+            process_node(conn, node)
+        except Exception as e:
+            logger.error(f"Failed to process node {node}: {e}")
+            failed_nodes += 1
+
+        if failed_nodes > 0:
+            logger.error(f"{failed_nodes} nodes failed to process. Exiting with error.")
+            sys.exit(1)
+
+    logger.info("All nodes processed successfully.")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
