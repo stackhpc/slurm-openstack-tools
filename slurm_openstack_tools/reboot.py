@@ -29,7 +29,7 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s
 logger.addHandler(handler)
 
 # Directory containing per-node configurations
-HOSTVARS_DIR = "/exports/cluster/hostvars"
+HOSTVARS_DIR = "/etc/slurm/reboot_vars"
 
 
 def read_hostvars(node):
@@ -40,7 +40,7 @@ def read_hostvars(node):
         logger.error(f"Invalid node name: {node}. Node name must contain only alphanumeric characters.")
         sys.exit(1)
 
-    hostvars_file = Path(HOSTVARS_DIR) / node / "hostvars.yml"
+    hostvars_file = Path(HOSTVARS_DIR) / f"{node}.yml"
     if not hostvars_file.exists():
         logger.warning(f"No hostvars.yml found for node: {node}")
         return None
