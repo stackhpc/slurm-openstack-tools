@@ -147,9 +147,11 @@ def main():
             logger.error(f"Failed to process node {node}: {e}")
             failed_nodes += 1
 
-        if failed_nodes > 0:
-            logger.error(f"{failed_nodes} nodes failed to process. Exiting with error.")
-            sys.exit(1)
+    # Only check for failures after attempting every node, so that a failure
+    # on one node does not prevent the remaining nodes from being processed.
+    if failed_nodes > 0:
+        logger.error(f"{failed_nodes} nodes failed to process. Exiting with error.")
+        sys.exit(1)
 
     logger.info("All nodes processed successfully.")
     sys.exit(0)
